@@ -750,9 +750,6 @@ def load_checkpoint(model, checkpoint_path, device):
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--local_rank", type=int, default=-1)
-    parser.add_argument("--model_type", type=str, default="VietAI/vit5-base")
-    parser.add_argument("--config_name", type=str, default="")
     parser.add_argument("--model_name_or_path", type=str, default="VietAI/vit5-base")
     parser.add_argument("--tokenizer_name", type=str, default="VietAI/vit5-base")
 
