@@ -34,7 +34,7 @@ python3 run_qa.py \
   --max_option_len 20 \
   --max_expl_len 200 \
   --num_labels 4 \
-  --eval_start_epoch 5 \
+  --eval_start_epoch 100 \
   --eval_interval 5 \
   --do_train "True"
 
