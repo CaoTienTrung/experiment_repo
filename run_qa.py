@@ -538,8 +538,10 @@ def train(
 
     best_dev_acc = -1.0
     best_bleu4 = -1.0
+    best_rougelf1 = -1.0
     best_acc_ckpt_path = os.path.join(checkpoint_dir, "best_acc.pth")
     best_bleu_ckpt_path = os.path.join(checkpoint_dir, "best_bleu.pth")
+    best_rougelf1_ckpt_path = os.path.join(checkpoint_dir, "best_rougelf1.pth")
 
     for epoch in range(epochs):
         model.train()
@@ -634,6 +636,16 @@ def train(
                 print(
                     f"BEST BLEU4: {best_bleu4:.4f} "
                     f"at epoch {current_epoch}, saved to {best_bleu_ckpt_path}"
+                )
+                
+            # ==== Best checkpoint theo RougeL-f1 ====
+            rougelf1 = expl_metrics.get('rougeL_f', 0.0)
+            if rougelf1 > best_rougelf1:
+                best_rougelf1 = rougelf1
+                save_checkpoint(model, optimizer, current_epoch, run_loss, best_rougelf1_ckpt_path)
+                print(
+                    f"BEST BLEU4: {best_rougelf1:.4f} "
+                    f"at epoch {current_epoch}, saved to {best_rougelf1_ckpt_path}"
                 )
 
 
