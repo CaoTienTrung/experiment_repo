@@ -8,7 +8,12 @@ from torch.autograd import Variable
 import copy
 import warnings
 from transformers import T5Config, AutoTokenizer
-from transformers.models.t5.modeling_t5 import *
+from transformers.models.t5.modeling_t5 import (
+    T5LayerNorm,
+    T5Stack,
+    T5Block,
+    T5PreTrainedModel
+)
 from transformers.modeling_outputs  import (
     BaseModelOutput,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -694,7 +699,7 @@ class ViWordFormerOCNModel(T5PreTrainedModel):
         # 11) Scoring
         logits = self.score_fc(fusion).view(B, N)   # [B,N]
 
-        return logits, fusion_seq, fusion_pooled, encoder_outputs
+        return logits, enc, fusion_pooled, encoder_outputs
 
     # ====== Forward ======
     def forward(
@@ -746,14 +751,19 @@ class ViWordFormerOCNModel(T5PreTrainedModel):
                 H = self.hidden_size
 
                 # fusion_seq: [B*N, L_opt, H] -> [B, N, L_opt, H]
-                fusion_seq_4d = fusion_seq.view(B, N, L_opt, H)
-                opt_mask_bool = (opt_mask > 0)          # [B, N, L_opt]
+                fusion_seq_4d = fusion_seq.view(B, N, -1, H)
+                query_mask_bool = (query_mask > 0)          # [B, N, L_opt]
+                doc_mask_bool = (doc_mask > 0)          # [B, N, L_opt]
+                opt_mask_bool = (opt_mask > 0)
                 
                 idx = torch.arange(B, device=fusion_seq.device)
                 
                 # sequence representation của option được chọn
                 chosen_seq = fusion_seq_4d[idx, chosen_idx]    # [B, L_opt, H]
-                chosen_mask = opt_mask_bool[idx, chosen_idx]   # [B, L_opt]
+                chosen_query_mask = query_mask_bool[idx, chosen_idx]   # [B, L_opt]
+                chosen_doc_mask = doc_mask_bool[idx, chosen_idx]   # [B, L_opt]
+                chosen_opt_mask = opt_mask_bool[idx, chosen_idx]   # [B, L_opt]
+                chosen_mask = torch.cat([chosen_doc_mask, chosen_query_mask, chosen_opt_mask], dim=-1)
 
                 encoder_hidden_for_expl = chosen_seq           # [B, L_opt, H]
                 encoder_attention_mask_expl = chosen_mask.long()  # [B, L_opt]
@@ -840,12 +850,19 @@ class ViWordFormerOCNModel(T5PreTrainedModel):
         )
 
         # Chuẩn bị context cho decoder giống forward
-        fusion_seq_4d = fusion_seq.view(B, N, L_opt, H)   # [B,N,L_opt,H]
-        opt_mask_bool = (opt_mask > 0)                    # [B,N,L_opt]
+        # fusion_seq: [B*N, L_opt, H] -> [B, N, L_opt, H]
+        fusion_seq_4d = fusion_seq.view(B, N, -1, H)
+        query_mask_bool = (query_mask > 0)          # [B, N, L_opt]
+        doc_mask_bool = (doc_mask > 0)          # [B, N, L_opt]
+        opt_mask_bool = (opt_mask > 0)
 
-        idx = torch.arange(B, device=device)
-        chosen_seq = fusion_seq_4d[idx, chosen_idx]       # [B,L_opt,H]
-        chosen_mask = opt_mask_bool[idx, chosen_idx]      # [B,L_opt]
+        idx = torch.arange(B, device=fusion_seq.device)        
+        # sequence representation của option được chọn
+        chosen_seq = fusion_seq_4d[idx, chosen_idx]    # [B, L_opt, H]
+        chosen_query_mask = query_mask_bool[idx, chosen_idx]   # [B, L_opt]
+        chosen_doc_mask = doc_mask_bool[idx, chosen_idx]   # [B, L_opt]
+        chosen_opt_mask = opt_mask_bool[idx, chosen_idx]   # [B, L_opt]
+        chosen_mask = torch.cat([chosen_doc_mask, chosen_query_mask, chosen_opt_mask], dim=-1)
 
         encoder_hidden_for_expl = chosen_seq              # [B,L_opt,H]
         encoder_attention_mask_expl = chosen_mask.long()  # [B,L_opt]
