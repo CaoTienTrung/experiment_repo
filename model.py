@@ -698,8 +698,10 @@ class ViWordFormerOCNModel(T5PreTrainedModel):
 
         # 11) Scoring
         logits = self.score_fc(fusion).view(B, N)   # [B,N]
+        
+        enc_seq = torch.cat([doc_enc, query_enc, fusion_seq], dim=1)
 
-        return logits, enc, fusion_pooled, encoder_outputs
+        return logits, enc_seq, fusion_pooled, encoder_outputs
 
     # ====== Forward ======
     def forward(
